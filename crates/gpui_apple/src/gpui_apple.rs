@@ -1,4 +1,5 @@
 #![cfg(target_os = "macos")]
+#![allow(deprecated)] // cocoa to objc2 migration is upstream's; the warnings are theirs
 //! Shared Apple platform support for GPUI.
 //!
 //! This crate contains the Metal renderer and GPU resource management shared

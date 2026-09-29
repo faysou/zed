@@ -1,4 +1,5 @@
 #![cfg(target_os = "macos")]
+#![allow(deprecated)] // cocoa to objc2 migration is upstream's; the warnings are theirs
 //! macOS platform implementation for GPUI.
 //!
 //! macOS screens have a y axis that goes up from the bottom of the screen and
