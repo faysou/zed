@@ -102,7 +102,7 @@ pub(crate) fn load_cursor(style: CursorStyle) -> Option<HCURSOR> {
     static NO: OnceLock<SafeCursor> = OnceLock::new();
     let (lock, name) = match style {
         CursorStyle::IBeam | CursorStyle::IBeamCursorForVerticalLayout => (&IBEAM, IDC_IBEAM),
-        CursorStyle::Crosshair => (&CROSS, IDC_CROSS),
+        CursorStyle::Crosshair | CursorStyle::Custom(_) => (&CROSS, IDC_CROSS),
         CursorStyle::PointingHand | CursorStyle::DragLink => (&HAND, IDC_HAND),
         CursorStyle::ResizeLeft
         | CursorStyle::ResizeRight

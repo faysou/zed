@@ -1131,6 +1131,19 @@ impl App {
     /// platform. This will report `false` after a keyboard input has hidden
     /// the cursor and the user has not yet moved the mouse to restore it.
     ///
+    /// Makes a cursor from straight-alpha RGBA `pixels`, drawn `size` points across with its hot spot `hotspot` points
+    /// from the upper-left corner, for [`CursorStyle::Custom`]. None where the platform cannot draw an image cursor;
+    /// the style then shows the crosshair.
+    pub fn register_cursor(
+        &self,
+        rgba: &[u8],
+        pixels: (u32, u32),
+        size: (f32, f32),
+        hotspot: (f32, f32),
+    ) -> Option<crate::CustomCursorId> {
+        self.platform.register_cursor(rgba, pixels, size, hotspot)
+    }
+
     /// See [`App::set_cursor_hide_mode`].
     pub fn is_cursor_visible(&self) -> bool {
         self.platform.is_cursor_visible()

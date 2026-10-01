@@ -1132,6 +1132,16 @@ impl Platform for MacPlatform {
         }
     }
 
+    fn register_cursor(
+        &self,
+        rgba: &[u8],
+        pixels: (u32, u32),
+        size: (f32, f32),
+        hotspot: (f32, f32),
+    ) -> Option<gpui::CustomCursorId> {
+        unsafe { crate::make_custom_cursor(rgba, pixels, size, hotspot) }.map(gpui::CustomCursorId)
+    }
+
     fn hide_cursor_until_mouse_moves(&self) {
         let cursor_visible = self.0.lock().cursor_visible.clone();
         if !cursor_visible.swap(false, Ordering::Relaxed) {

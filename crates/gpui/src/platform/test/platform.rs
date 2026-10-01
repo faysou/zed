@@ -34,6 +34,7 @@ pub(crate) struct TestPlatform {
     pub(crate) active_window: RefCell<Option<TestWindow>>,
     active_display: Rc<dyn PlatformDisplay>,
     active_cursor: Mutex<CursorStyle>,
+    registered_cursors: Mutex<u32>,
     current_clipboard_item: Mutex<Option<ClipboardItem>>,
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     current_primary_item: Mutex<Option<ClipboardItem>>,
@@ -155,6 +156,7 @@ impl TestPlatform {
             prompts: Default::default(),
             screen_capture_sources: Default::default(),
             active_cursor: Default::default(),
+            registered_cursors: Default::default(),
             active_display: Rc::new(TestDisplay::new()),
             active_window: Default::default(),
             expect_restart: Default::default(),
@@ -660,6 +662,21 @@ impl Platform for TestPlatform {
 
     fn set_cursor_style(&self, style: crate::CursorStyle) {
         *self.active_cursor.lock() = style;
+    }
+
+    fn register_cursor(
+        &self,
+        rgba: &[u8],
+        pixels: (u32, u32),
+        _size: (f32, f32),
+        _hotspot: (f32, f32),
+    ) -> Option<crate::CustomCursorId> {
+        if rgba.len() != pixels.0 as usize * pixels.1 as usize * 4 {
+            return None;
+        }
+        let mut count = self.registered_cursors.lock();
+        *count += 1;
+        Some(crate::CustomCursorId(*count - 1))
     }
 
     fn hide_cursor_until_mouse_moves(&self) {}

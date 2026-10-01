@@ -366,6 +366,18 @@ pub trait Platform: 'static {
     /// this application's windows.
     fn hide_cursor_until_mouse_moves(&self);
 
+    /// Makes a cursor from straight-alpha RGBA pixels, `size` wide and high in points, with its hot spot `hotspot`
+    /// points from the upper-left corner. None where the platform cannot draw an image cursor.
+    fn register_cursor(
+        &self,
+        _rgba: &[u8],
+        _pixels: (u32, u32),
+        _size: (f32, f32),
+        _hotspot: (f32, f32),
+    ) -> Option<CustomCursorId> {
+        None
+    }
+
     /// Returns whether the mouse cursor is currently visible.
     fn is_cursor_visible(&self) -> bool;
 
@@ -2559,6 +2571,10 @@ impl From<&str> for PromptButton {
     }
 }
 
+/// A cursor made from an image with [`App::register_cursor`], for [`CursorStyle::Custom`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+pub struct CustomCursorId(pub u32);
+
 /// The style of the cursor (pointer)
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 pub enum CursorStyle {
@@ -2645,6 +2661,9 @@ pub enum CursorStyle {
     /// A cursor indicating that the operation will result in a context menu
     /// corresponds to the CSS cursor value `context-menu`
     ContextualMenu,
+
+    /// A cursor made from an image. Platforms that cannot draw one show the crosshair.
+    Custom(CustomCursorId),
 }
 
 /// A clipboard item that should be copied to the clipboard

@@ -394,6 +394,65 @@ pub(crate) fn convert_mouse_position(position: NSPoint, window_height: Pixels) -
 /// This function is not thread safe. Callers must ensure this is called on the AppKit main
 /// thread because it reads the active AppKit window and updates GPUI window state associated
 /// with Objective-C objects.
+/// The cursors made from images, by `CustomCursorId`. They live as long as the app does.
+static CUSTOM_CURSORS: Mutex<Vec<usize>> = Mutex::new(Vec::new());
+
+/// An `NSCursor` for straight-alpha RGBA `pixels`, drawn `size` points across with its hot spot `hotspot` points from
+/// the upper-left corner; `None` if AppKit refuses the image. Pixels beyond the points give a sharper cursor on
+/// high-density screens.
+pub(crate) unsafe fn make_custom_cursor(
+    rgba: &[u8],
+    pixels: (u32, u32),
+    size: (f32, f32),
+    hotspot: (f32, f32),
+) -> Option<u32> {
+    if rgba.len() != pixels.0 as usize * pixels.1 as usize * 4 || pixels.0 == 0 || pixels.1 == 0 {
+        return None;
+    }
+    // SAFETY: AppKit calls run on the main thread, as every platform call does; the representation is filled before
+    // anything reads it, and the cursor retains the image.
+    unsafe {
+        let representation: id = msg_send![class!(NSBitmapImageRep), alloc];
+        let representation: id = msg_send![representation,
+            initWithBitmapDataPlanes: std::ptr::null_mut::<*mut u8>()
+            pixelsWide: pixels.0 as NSInteger
+            pixelsHigh: pixels.1 as NSInteger
+            bitsPerSample: 8 as NSInteger
+            samplesPerPixel: 4 as NSInteger
+            hasAlpha: YES
+            isPlanar: NO
+            colorSpaceName: NSString::alloc(nil).init_str("NSCalibratedRGBColorSpace")
+            bytesPerRow: (pixels.0 * 4) as NSInteger
+            bitsPerPixel: 32 as NSInteger
+        ];
+        if representation.is_null() {
+            return None;
+        }
+        let data: *mut u8 = msg_send![representation, bitmapData];
+        if data.is_null() {
+            let _: () = msg_send![representation, release];
+            return None;
+        }
+        std::ptr::copy_nonoverlapping(rgba.as_ptr(), data, rgba.len());
+        let image: id = msg_send![class!(NSImage), alloc];
+        let image: id = msg_send![image, initWithSize: NSSize::new(f64::from(size.0), f64::from(size.1))];
+        let _: () = msg_send![image, addRepresentation: representation];
+        let _: () = msg_send![representation, release];
+        let cursor: id = msg_send![class!(NSCursor), alloc];
+        let cursor: id = msg_send![cursor,
+            initWithImage: image
+            hotSpot: NSPoint::new(f64::from(hotspot.0), f64::from(hotspot.1))
+        ];
+        let _: () = msg_send![image, release];
+        if cursor.is_null() {
+            return None;
+        }
+        let mut cursors = CUSTOM_CURSORS.lock();
+        cursors.push(cursor as usize);
+        Some((cursors.len() - 1) as u32)
+    }
+}
+
 pub(crate) unsafe fn set_active_window_cursor_style(style: CursorStyle) {
     // SAFETY: The caller guarantees AppKit main-thread access. `is_gpui_window` ensures the
     // window has our WINDOW_STATE_IVAR before reading it.
@@ -2551,6 +2610,13 @@ extern "C" fn reset_cursor_rects(this: &Object, _: Sel) {
             CursorStyle::DragLink => msg_send![class!(NSCursor), dragLinkCursor],
             CursorStyle::DragCopy => msg_send![class!(NSCursor), dragCopyCursor],
             CursorStyle::ContextualMenu => msg_send![class!(NSCursor), contextualMenuCursor],
+            CursorStyle::Custom(id) => {
+                let found = CUSTOM_CURSORS.lock().get(id.0 as usize).copied();
+                match found {
+                    Some(cursor) => cursor as id,
+                    None => msg_send![class!(NSCursor), crosshairCursor],
+                }
+            }
         };
 
         let bounds = NSView::bounds(this as *const Object as id);
